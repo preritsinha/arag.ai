@@ -1,8 +1,8 @@
+from flask import Flask, request, render_template
 from sentence_transformers import SentenceTransformer
 from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import WebBaseLoader
-import bs4
+from langchain_community.document_loaders import PyMuPDFLoader
 
 # Load a compatible model from sentence-transformers
 model = SentenceTransformer("Snowflake/snowflake-arctic-embed-m")
@@ -21,16 +21,9 @@ class EmbeddingsWrapper:
 # Instantiate the wrapper
 embedding_wrapper = EmbeddingsWrapper(model)
 
-def embedding_extractor(url):
+def embedding_extractor(file_path):
     # Load Docs
-    loader = WebBaseLoader(
-        web_paths=(url,),
-        bs_kwargs=dict(
-            parse_only=bs4.SoupStrainer(
-                class_=('post-content', 'post-title', 'post-header')
-            )
-        )
-    )
+    loader = PyMuPDFLoader(file_path)
     docs = loader.load()
 
     # Split
