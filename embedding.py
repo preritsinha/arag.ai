@@ -27,7 +27,7 @@ def embedding_extractor(file_path):
     docs = loader.load()
 
     # Split
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
     splits = text_splitter.split_documents(docs)
 
     # Embed and create vectorstore
