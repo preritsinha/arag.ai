@@ -1,25 +1,25 @@
 from flask import Flask, request, render_template
-from sentence_transformers import SentenceTransformer
+from transformers import CanineTokenizer, CanineModel
+import torch
 from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyMuPDFLoader
 
-# Load a compatible model from sentence-transformers
-model = SentenceTransformer("Snowflake/snowflake-arctic-embed-m")
+# Load Canine model and tokenizer
+model = CanineModel.from_pretrained('google/canine-c')
+tokenizer = CanineTokenizer.from_pretrained('google/canine-c')
 
-# Wrapper class for embeddings
-class EmbeddingsWrapper:
-    def __init__(self, model):
-        self.model = model
+def embed_texts(texts):
+    encoding = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**encoding)
+    return outputs.last_hidden_state.mean(dim=1).tolist()
 
-    def embed_documents(self, texts):
-        return self.model.encode(texts, convert_to_tensor=True).tolist()
-
-    def embed_query(self, text):
-        return self.model.encode([text], convert_to_tensor=True).tolist()[0]
-
-# Instantiate the wrapper
-embedding_wrapper = EmbeddingsWrapper(model)
+def embed_query(text):
+    encoding = tokenizer([text], padding=True, truncation=True, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**encoding)
+    return outputs.last_hidden_state.mean(dim=1).tolist()[0]
 
 def embedding_extractor(file_path):
     # Load Docs
@@ -31,7 +31,8 @@ def embedding_extractor(file_path):
     splits = text_splitter.split_documents(docs)
 
     # Embed and create vectorstore
-    vectorstore = Chroma.from_documents(documents=splits, embedding=embedding_wrapper)
+    embeddings = embed_texts([doc.page_content for doc in splits])
+    vectorstore = Chroma.from_documents(documents=splits, embedding=embeddings)
     retriever = vectorstore.as_retriever()
     return retriever
 
@@ -42,5 +43,4 @@ def doc_format(retriever):
     # Retrieve documents and format them
     retrieved_docs = retriever.get_relevant_documents("What is Task Decomposition?")
     formatted_docs = format_docs(retrieved_docs)
-    return (formatted_docs)
-
+    return formatted_docs
